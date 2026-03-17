@@ -1,261 +1,545 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { api } from "@/lib/api/client";
-import { useWebSocket } from "@/hooks/useWebSocket";
-import type { Project, Agent, Task, Message, Decision, Output } from "@/types";
+'use client'
 
-/* ── Status badge colours ── */
-const S: Record<string, string> = {
-  pending: "bg-gray-100 text-gray-600",
-  in_progress: "bg-yellow-100 text-yellow-700",
-  completed: "bg-green-100 text-green-700",
-  failed: "bg-red-100 text-red-700",
-  review: "bg-purple-100 text-purple-700",
-  idle: "bg-gray-100 text-gray-600",
-  working: "bg-yellow-100 text-yellow-700",
-  draft: "bg-gray-100 text-gray-600",
-  approved: "bg-green-100 text-green-700",
-  executing: "bg-yellow-100 text-yellow-700",
-  planning: "bg-blue-100 text-blue-700",
-};
-
-const AGENT_TYPE_ICON: Record<string, string> = {
-  coordinator: "👔",
-  planner: "📋",
-  specialist: "⚙️",
-};
-
-const MSG_TYPE_ICON: Record<string, string> = {
-  TASK_ASSIGNMENT: "📌",
-  PROPOSAL: "💡",
-  QUESTION: "❓",
-  DECISION: "⚖️",
-  REPORT: "📊",
-  DISCUSSION: "💬",
-  INFO: "ℹ️",
-  ERROR: "🚨",
-};
-
-/* ── Tab selector ── */
-type Tab = "team" | "tasks" | "messages" | "decisions" | "outputs";
+import { useEffect, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { apiClient } from '@/lib/api'
+import { formatDateTime, getStatusColor, getAgentTypeIcon } from '@/lib/utils'
+import type { Project, Agent, Task, Message, Decision, Output } from '@/types/api'
 
 export default function ProjectDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const router = useRouter();
-  const { lastEvent } = useWebSocket(id);
+  const params = useParams()
+  const router = useRouter()
+  const projectId = params.id as string
 
-  const [project, setProject] = useState<Project | null>(null);
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [decisions, setDecisions] = useState<Decision[]>([]);
-  const [outputs, setOutputs] = useState<Output[]>([]);
-  const [tab, setTab] = useState<Tab>("team");
-  const [loading, setLoading] = useState(true);
+  const [project, setProject] = useState<Project | null>(null)
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [messages, setMessages] = useState<Message[]>([])
+  const [decisions, setDecisions] = useState<Decision[]>([])
+  const [outputs, setOutputs] = useState<Output[]>([])
+  const [activeTab, setActiveTab] = useState<'overview' | 'agents' | 'tasks' | 'messages' | 'decisions' | 'outputs'>('overview')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  /* ── Fetch all data ── */
-  const fetchAll = async () => {
-    try {
-      const [p, a, t, m, d, o] = await Promise.all([
-        api.getProject(id),
-        api.getAgents(id),
-        api.getTasks(id),
-        api.getMessages(id),
-        api.getDecisions(id),
-        api.getOutputs(id),
-      ]);
-      setProject(p);
-      setAgents(a);
-      setTasks(t);
-      setMessages(m);
-      setDecisions(d);
-      setOutputs(o);
-    } catch {
-      router.push("/login");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchAll(); }, [id]);
-
-  /* ── Auto-refresh while executing ── */
   useEffect(() => {
-    if (!project || project.status === "completed" || project.status === "failed") return;
-    const timer = setInterval(fetchAll, 5000);
-    return () => clearInterval(timer);
-  }, [project?.status]);
+    if (!apiClient.isAuthenticated()) {
+      router.push('/login')
+      return
+    }
 
-  /* ── Refresh on WS event ── */
-  useEffect(() => { if (lastEvent) fetchAll(); }, [lastEvent]);
+    loadProjectData()
+    // Poll for updates every 5 seconds
+    const interval = setInterval(loadProjectData, 5000)
+    return () => clearInterval(interval)
+  }, [projectId, router])
 
-  if (loading || !project) {
-    return <div className="flex min-h-screen items-center justify-center text-gray-400">Loading project…</div>;
+  const loadProjectData = async () => {
+    try {
+      const [projectData, agentsData, tasksData, messagesData, decisionsData, outputsData] = await Promise.all([
+        apiClient.getProject(projectId),
+        apiClient.getAgents(projectId),
+        apiClient.getTasks(projectId),
+        apiClient.getMessages(projectId),
+        apiClient.getDecisions(projectId),
+        apiClient.getOutputs(projectId),
+      ])
+
+      setProject(projectData)
+      setAgents(agentsData)
+      setTasks(tasksData)
+      setMessages(messagesData)
+      setDecisions(decisionsData)
+      setOutputs(outputsData)
+      setError('')
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        router.push('/login')
+      } else {
+        setError('Failed to load project data')
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const agentMap = Object.fromEntries(agents.map((a) => [a.id, a]));
-  const agentName = (aid?: string) => (aid && agentMap[aid]?.name) || "—";
-  const progress = project.total_tasks > 0 ? Math.round((project.completed_tasks / project.total_tasks) * 100) : 0;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading project...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!project) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl text-gray-600">Project not found</p>
+          <Link href="/projects">
+            <Button className="mt-4">← Back to Projects</Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  const progressPercentage = project.total_tasks > 0 
+    ? Math.round((project.completed_tasks / project.total_tasks) * 100) 
+    : 0
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      {/* ── Header ── */}
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <button onClick={() => router.push("/projects")} className="text-sm text-gray-400 hover:text-gray-600 mb-1">&larr; Projects</button>
-          <h1 className="text-2xl font-bold">{project.name}</h1>
-          <p className="text-sm text-gray-500 mt-1 max-w-2xl">{project.goal_raw}</p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <Link href="/projects">
+                  <Button variant="outline" size="sm">← Back</Button>
+                </Link>
+                <span className={`px-3 py-1 text-sm font-medium rounded-full ${getStatusColor(project.status)}`}>
+                  {project.status}
+                </span>
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
+              <p className="text-sm text-gray-600 mt-1">{project.description || project.goal_raw}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-gray-600">Progress</div>
+              <div className="text-3xl font-bold text-blue-600">{progressPercentage}%</div>
+              <div className="text-xs text-gray-500">
+                {project.completed_tasks}/{project.total_tasks} tasks
+              </div>
+            </div>
+          </div>
         </div>
-        <span className={`rounded-full px-4 py-1.5 text-sm font-medium ${S[project.status] || "bg-gray-100"}`}>
-          {project.status}
-        </span>
+      </header>
+
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex space-x-8">
+            {[
+              { id: 'overview', label: 'Overview', count: null },
+              { id: 'agents', label: 'Agents', count: agents.length },
+              { id: 'tasks', label: 'Tasks', count: tasks.length },
+              { id: 'messages', label: 'Messages', count: messages.length },
+              { id: 'decisions', label: 'Decisions', count: decisions.length },
+              { id: 'outputs', label: 'Outputs', count: outputs.length },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === tab.id
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {tab.label}
+                {tab.count !== null && (
+                  <span className="ml-2 py-0.5 px-2 rounded-full bg-gray-100 text-gray-600 text-xs">
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
 
-      {/* ── Progress bar ── */}
-      <div className="mb-6">
-        <div className="flex justify-between text-xs text-gray-500 mb-1">
-          <span>{project.completed_tasks}/{project.total_tasks} tasks</span>
-          <span>{progress}%</span>
-        </div>
-        <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
-          <div className="h-full rounded-full bg-brand-600 transition-all duration-500" style={{ width: `${progress}%` }} />
-        </div>
-      </div>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {error && (
+          <div className="mb-6 p-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+            {error}
+          </div>
+        )}
 
-      {/* ── Tabs ── */}
-      <div className="flex gap-1 border-b mb-6">
-        {(["team", "tasks", "messages", "decisions", "outputs"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-sm font-medium capitalize transition ${
-              tab === t ? "border-b-2 border-brand-600 text-brand-600" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            {t} {t === "tasks" ? `(${tasks.length})` : t === "messages" ? `(${messages.length})` : ""}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Tab content ── */}
-      {tab === "team" && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {agents.map((a) => (
-            <div key={a.id} className="rounded-xl border bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xl">{AGENT_TYPE_ICON[a.agent_type] || "🤖"}</span>
-                <div>
-                  <h3 className="font-semibold">{a.name}</h3>
-                  <p className="text-xs text-gray-400">{a.role}</p>
+        {/* Overview Tab */}
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Project Stats</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Status:</span>
+                  <span className="font-medium">{project.status}</span>
                 </div>
-                <span className={`ml-auto rounded-full px-2 py-0.5 text-xs ${S[a.status] || "bg-gray-100"}`}>{a.status}</span>
-              </div>
-              <p className="text-sm text-gray-500 mb-3">{a.description}</p>
-              <div className="flex gap-4 text-xs text-gray-400">
-                <span>Auth: L{a.authority_level}</span>
-                <span>Tasks: {a.tasks_completed}/{a.tasks_assigned}</span>
-                <span>Msgs: {a.messages_sent}</span>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {a.capabilities.map((c) => (
-                  <span key={c} className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">{c}</span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {tab === "tasks" && (
-        <div className="space-y-3">
-          {tasks.map((t) => (
-            <div key={t.id} className="rounded-xl border bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="font-medium">{t.title}</h3>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${S[t.status] || "bg-gray-100"}`}>{t.status}</span>
-              </div>
-              {t.description && <p className="text-sm text-gray-500 mb-2">{t.description}</p>}
-              <div className="flex gap-4 text-xs text-gray-400">
-                <span>Owner: {agentName(t.owner_agent_id)}</span>
-                <span>Reviewer: {agentName(t.reviewer_agent_id)}</span>
-                <span>Approver: {agentName(t.approver_agent_id)}</span>
-                {t.estimated_duration && <span>~{t.estimated_duration}min</span>}
-              </div>
-              {t.error_message && <p className="mt-2 text-xs text-red-500">Error: {t.error_message}</p>}
-            </div>
-          ))}
-          {tasks.length === 0 && <p className="text-center text-gray-400 py-8">Tasks will appear once the Planner Agent creates them…</p>}
-        </div>
-      )}
-
-      {tab === "messages" && (
-        <div className="space-y-3 max-h-[600px] overflow-y-auto">
-          {messages.map((m) => (
-            <div key={m.id} className="rounded-xl border bg-white p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-1">
-                <span>{MSG_TYPE_ICON[m.message_type] || "💬"}</span>
-                <span className="text-xs font-medium text-brand-600">{agentName(m.sender_agent_id)}</span>
-                <span className="text-xs text-gray-400">&rarr;</span>
-                <span className="text-xs text-gray-500">{agentName(m.receiver_agent_id)}</span>
-                <span className="ml-auto text-xs text-gray-300">{new Date(m.created_at).toLocaleTimeString()}</span>
-              </div>
-              {m.subject && <p className="text-sm font-medium">{m.subject}</p>}
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{m.content}</p>
-            </div>
-          ))}
-          {messages.length === 0 && <p className="text-center text-gray-400 py-8">Agent messages will appear here…</p>}
-        </div>
-      )}
-
-      {tab === "decisions" && (
-        <div className="space-y-3">
-          {decisions.map((d) => (
-            <div key={d.id} className="rounded-xl border bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="font-medium">⚖️ {d.title}</h3>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${S[d.status] || "bg-gray-100"}`}>{d.status}</span>
-              </div>
-              <p className="text-sm text-gray-600">{d.description}</p>
-              <p className="text-sm text-gray-500 mt-1"><strong>Rationale:</strong> {d.rationale}</p>
-              <div className="flex gap-4 text-xs text-gray-400 mt-2">
-                <span>By: {agentName(d.made_by_agent_id)}</span>
-                <span>Type: {d.decision_type}</span>
-              </div>
-            </div>
-          ))}
-          {decisions.length === 0 && <p className="text-center text-gray-400 py-8">Decisions will appear as agents make them…</p>}
-        </div>
-      )}
-
-      {tab === "outputs" && (
-        <div className="space-y-3">
-          {outputs.map((o) => (
-            <div key={o.id} className="rounded-xl border bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="font-medium">{o.title}</h3>
-                <div className="flex gap-2">
-                  <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">{o.output_type}</span>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${S[o.status] || "bg-gray-100"}`}>{o.status}</span>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Task Type:</span>
+                  <span className="font-medium">{project.task_type.replace('_', ' ')}</span>
                 </div>
-              </div>
-              {o.description && <p className="text-sm text-gray-500 mb-2">{o.description}</p>}
-              <div className="flex gap-4 text-xs text-gray-400 mb-2">
-                <span>Author: {agentName(o.author_agent_id)}</span>
-                <span>v{o.version}</span>
-                {o.quality_score && <span>Score: {o.quality_score}/10</span>}
-              </div>
-              {o.content && (
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-xs text-brand-600 hover:underline">View content</summary>
-                  <pre className="mt-2 max-h-80 overflow-auto rounded-lg bg-gray-900 p-4 text-xs text-green-400">{o.content}</pre>
-                </details>
-              )}
-            </div>
-          ))}
-          {outputs.length === 0 && <p className="text-center text-gray-400 py-8">Outputs will appear as agents produce them…</p>}
-        </div>
-      )}
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total Tasks:</span>
+                  <span className="font-medium">{project.total_tasks}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Completed:</span>
+                  <span className="font-medium">{project.completed_tasks}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Messages:</span>
+                  <span className="font-medium">{project.total_messages}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Decisions:</span>
+                  <span className="font-medium">{project.total_decisions}</span>
+                </div>
+                <div className="pt-3 border-t border-gray-200">
+                  <div className="text-xs text-gray-500">
+                    Created: {formatDateTime(project.created_at)}
+                  </div>
+                  {project.started_at && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Started: {formatDateTime(project.started_at)}
+                    </div>
+                  )}
+                  {project.completed_at && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Completed: {formatDateTime(project.completed_at)}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-lg">Goal</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-700 whitespace-pre-wrap">{project.goal_raw}</p>
+                {project.goal_parsed && Object.keys(project.goal_parsed).length > 0 && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-md">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Parsed Requirements:</p>
+                    <pre className="text-xs text-gray-600 overflow-auto">
+                      {JSON.stringify(project.goal_parsed, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Agents Tab */}
+        {activeTab === 'agents' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {agents.map((agent) => (
+              <Card key={agent.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-2xl">{getAgentTypeIcon(agent.agent_type)}</span>
+                        <CardTitle className="text-lg">{agent.name}</CardTitle>
+                      </div>
+                      <CardDescription>{agent.role}</CardDescription>
+                    </div>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(agent.status)}`}>
+                      {agent.status}
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-gray-600">{agent.description}</p>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Authority:</span>
+                      <span className="font-medium">Level {agent.authority_level}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Tasks:</span>
+                      <span className="font-medium">
+                        {agent.tasks_completed}/{agent.tasks_assigned}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Messages:</span>
+                      <span className="font-medium">{agent.messages_sent}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Decisions:</span>
+                      <span className="font-medium">{agent.decisions_made}</span>
+                    </div>
+                  </div>
+                  {agent.capabilities.length > 0 && (
+                    <div className="pt-3 border-t border-gray-200">
+                      <p className="text-xs font-medium text-gray-700 mb-2">Capabilities:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {agent.capabilities.map((cap, idx) => (
+                          <span key={idx} className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded">
+                            {cap}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Tasks Tab */}
+        {activeTab === 'tasks' && (
+          <div className="space-y-4">
+            {tasks.map((task) => (
+              <Card key={task.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CardTitle className="text-lg">{task.title}</CardTitle>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(task.status)}`}>
+                          {task.status}
+                        </span>
+                      </div>
+                      {task.description && (
+                        <CardDescription>{task.description}</CardDescription>
+                      )}
+                    </div>
+                    <div className="text-right text-sm">
+                      <div className="text-gray-600">Priority: {task.priority}</div>
+                      {task.estimated_duration && (
+                        <div className="text-gray-500 text-xs">~{task.estimated_duration}min</div>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">Type:</span>
+                      <p className="font-medium">{task.task_type}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Owner:</span>
+                      <p className="font-medium text-xs">
+                        {agents.find(a => a.id === task.owner_agent_id)?.name || 'N/A'}
+                      </p>
+                    </div>
+                    {task.started_at && (
+                      <div>
+                        <span className="text-gray-600">Started:</span>
+                        <p className="font-medium text-xs">{formatDateTime(task.started_at)}</p>
+                      </div>
+                    )}
+                    {task.completed_at && (
+                      <div>
+                        <span className="text-gray-600">Completed:</span>
+                        <p className="font-medium text-xs">{formatDateTime(task.completed_at)}</p>
+                      </div>
+                    )}
+                  </div>
+                  {task.error_message && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-600">
+                      {task.error_message}
+                    </div>
+                  )}
+                  {task.output_data && Object.keys(task.output_data).length > 0 && (
+                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                      <p className="text-sm font-medium text-green-800 mb-1">Output:</p>
+                      <pre className="text-xs text-green-700 overflow-auto">
+                        {JSON.stringify(task.output_data, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+            {tasks.length === 0 && (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <p className="text-gray-600">No tasks yet. Workflow is starting...</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Messages Tab */}
+        {activeTab === 'messages' && (
+          <div className="space-y-4">
+            {messages.map((message) => (
+              <Card key={message.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded">
+                          {message.message_type}
+                        </span>
+                        {message.is_important && (
+                          <span className="text-red-500">⚠️</span>
+                        )}
+                        <CardTitle className="text-base">{message.subject}</CardTitle>
+                      </div>
+                      <CardDescription className="text-xs">
+                        From: {agents.find(a => a.id === message.sender_agent_id)?.name || 'System'} →
+                        To: {agents.find(a => a.id === message.receiver_agent_id)?.name || 'All'}
+                      </CardDescription>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {formatDateTime(message.created_at)}
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{message.content}</p>
+                </CardContent>
+              </Card>
+            ))}
+            {messages.length === 0 && (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <p className="text-gray-600">No messages yet</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Decisions Tab */}
+        {activeTab === 'decisions' && (
+          <div className="space-y-4">
+            {decisions.map((decision) => (
+              <Card key={decision.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CardTitle className="text-lg">{decision.title}</CardTitle>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(decision.status)}`}>
+                          {decision.status}
+                        </span>
+                      </div>
+                      <CardDescription>
+                        By: {agents.find(a => a.id === decision.made_by_agent_id)?.name || 'Unknown'}
+                      </CardDescription>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {formatDateTime(decision.created_at)}
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-gray-700">{decision.description}</p>
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <p className="text-sm font-medium text-blue-900 mb-1">Rationale:</p>
+                    <p className="text-sm text-blue-800">{decision.rationale}</p>
+                  </div>
+                  {decision.options_considered.length > 0 && (
+                    <div className="p-3 bg-gray-50 rounded-md">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Options Considered:</p>
+                      <pre className="text-xs text-gray-600 overflow-auto">
+                        {JSON.stringify(decision.options_considered, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                    <p className="text-sm font-medium text-green-900 mb-1">Chosen Option:</p>
+                    <pre className="text-xs text-green-800 overflow-auto">
+                      {JSON.stringify(decision.chosen_option, null, 2)}
+                    </pre>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {decisions.length === 0 && (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <p className="text-gray-600">No decisions yet</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Outputs Tab */}
+        {activeTab === 'outputs' && (
+          <div className="space-y-4">
+            {outputs.map((output) => (
+              <Card key={output.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CardTitle className="text-lg">{output.title}</CardTitle>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(output.status)}`}>
+                          {output.status}
+                        </span>
+                        {output.is_latest && (
+                          <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
+                            Latest
+                          </span>
+                        )}
+                      </div>
+                      <CardDescription>
+                        Type: {output.output_type} | Version: {output.version} |
+                        By: {agents.find(a => a.id === output.author_agent_id)?.name || 'Unknown'}
+                      </CardDescription>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {formatDateTime(output.created_at)}
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {output.description && (
+                    <p className="text-sm text-gray-700">{output.description}</p>
+                  )}
+                  {output.file_path && (
+                    <div className="text-sm">
+                      <span className="text-gray-600">File:</span>
+                      <code className="ml-2 px-2 py-1 bg-gray-100 rounded text-xs">
+                        {output.file_path}
+                      </code>
+                    </div>
+                  )}
+                  {output.content && (
+                    <div className="p-3 bg-gray-900 rounded-md overflow-auto">
+                      <pre className="text-xs text-green-400">
+                        {output.content.substring(0, 500)}
+                        {output.content.length > 500 && '...'}
+                      </pre>
+                    </div>
+                  )}
+                  {output.quality_score && (
+                    <div className="text-sm">
+                      <span className="text-gray-600">Quality Score:</span>
+                      <span className="ml-2 font-medium">{output.quality_score}/1.00</span>
+                    </div>
+                  )}
+                  {output.review_comments && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <p className="text-sm font-medium text-yellow-900 mb-1">Review Comments:</p>
+                      <p className="text-sm text-yellow-800">{output.review_comments}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+            {outputs.length === 0 && (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <p className="text-gray-600">No outputs yet</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+      </main>
     </div>
-  );
+  )
 }
