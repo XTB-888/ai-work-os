@@ -10,7 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 import time
 
 from app.core import settings
-from app.api.v1 import auth, projects, project_data, websocket
+from app.api.v1 import auth, projects, project_data, websocket, system
 
 # ── Configure Logging ────────────────────────────────────────────
 logging.basicConfig(
@@ -117,6 +117,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(projects.router, prefix="/api/v1/projects", tags=["projects"])
 app.include_router(project_data.router, prefix="/api/v1/projects", tags=["project-data"])
 app.include_router(websocket.router, prefix="/ws", tags=["websocket"])
+app.include_router(system.router, prefix="/api/v1/system", tags=["system"])
 
 # ── Startup/Shutdown ─────────────────────────────────────────────
 @app.on_event("startup")

@@ -80,3 +80,55 @@ async def get_project(
     if not project:
         raise NotFoundException("Project not found")
     return ProjectDetail.model_validate(project)
+
+
+@router.delete("/{project_id}")
+async def delete_project(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Delete a project and all associated data."""
+    result = await db.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == user.id)
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        raise NotFoundException("Project not found")
+
+    await db.delete(project)
+    return {"success": True, "message": f"Project '{project.name}' deleted"}
+
+
+@router.post("/{project_id}/restart")
+async def restart_project(
+    project_id: UUID,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Restart a failed or completed project."""
+    result = await db.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == user.id)
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        raise NotFoundException("Project not found")
+
+    if project.status not in ("failed", "completed", "cancelled"):
+        from app.core.exceptions import BadRequestException
+        raise BadRequestException(
+            f"Cannot restart project with status '{project.status}'. "
+            "Only failed, completed, or cancelled projects can be restarted."
+        )
+
+    # Reset project status
+    project.status = "planning"
+    project.completed_at = None
+    project.completed_tasks = 0
+    await db.flush()
+
+    # Restart workflow
+    background_tasks.add_task(WorkflowEngine.run, str(project.id))
+
+    return {"success": True, "message": f"Project '{project.name}' restarted"}
