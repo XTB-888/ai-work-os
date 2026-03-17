@@ -37,10 +37,10 @@ if (Test-Path "frontend") {
 Write-Host ""
 Write-Host "✅ AI Work OS is running!" -ForegroundColor Green
 Write-Host ""
-Write-Host "📍 Backend API: http://localhost:8000" -ForegroundColor White
-Write-Host "📍 API Docs: http://localhost:8000/docs" -ForegroundColor White
+Write-Host "📍 Backend API: http://localhost:8001" -ForegroundColor White
+Write-Host "📍 API Docs: http://localhost:8001/docs" -ForegroundColor White
 if (Test-Path "frontend") {
-    Write-Host "📍 Frontend: http://localhost:3000" -ForegroundColor White
+    Write-Host "📍 Frontend: http://localhost:3001" -ForegroundColor White
 }
 Write-Host ""
 Write-Host "Press Ctrl+C in the backend/frontend windows to stop services" -ForegroundColor Yellow

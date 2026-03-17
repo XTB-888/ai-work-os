@@ -223,9 +223,9 @@ docker-compose up -d
 ```
 
 ### 4. 访问应用
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+- Frontend: http://localhost:3001
+- Backend API: http://localhost:8001
+- API Docs: http://localhost:8001/docs
 
 ---
 

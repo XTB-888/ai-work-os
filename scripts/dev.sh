@@ -42,10 +42,10 @@ fi
 echo ""
 echo "✅ AI Work OS is running!"
 echo ""
-echo "📍 Backend API: http://localhost:8000"
-echo "📍 API Docs: http://localhost:8000/docs"
+echo "📍 Backend API: http://localhost:8001"
+echo "📍 API Docs: http://localhost:8001/docs"
 if [ -d "frontend" ]; then
-    echo "📍 Frontend: http://localhost:3000"
+    echo "📍 Frontend: http://localhost:3001"
 fi
 echo ""
 echo "Press Ctrl+C to stop all services"

@@ -5,7 +5,7 @@ import asyncio
 import httpx
 
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8001"
 
 
 async def test_flow():

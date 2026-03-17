@@ -530,7 +530,7 @@ import io from 'socket.io-client'
 
 export function useWebSocket(projectId: string) {
   useEffect(() => {
-    const socket = io('http://localhost:8000')
+    const socket = io('http://localhost:8001')
     
     socket.emit('join_project', projectId)
     
@@ -698,9 +698,9 @@ docker-compose up -d
 docker-compose exec backend alembic upgrade head
 
 # 访问应用
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:8000
-# API Docs: http://localhost:8000/docs
+# Frontend: http://localhost:3001
+# Backend API: http://localhost:8001
+# API Docs: http://localhost:8001/docs
 ```
 
 ### 7.2 生产环境 (简化版)

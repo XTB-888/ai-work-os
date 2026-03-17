@@ -222,9 +222,9 @@ docker-compose exec backend alembic upgrade head
 ```
 
 ### 4. 访问应用
-- 前端: http://localhost:3000
-- 后端: http://localhost:8000
-- API文档: http://localhost:8000/docs
+- 前端: http://localhost:3001
+- 后端: http://localhost:8001
+- API文档: http://localhost:8001/docs
 
 ---
 

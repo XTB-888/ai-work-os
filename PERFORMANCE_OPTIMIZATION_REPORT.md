@@ -251,7 +251,7 @@ const debouncedSearch = useDebounce((query: string) => {
 ### 前端WebSocket
 ```typescript
 const { sendMessage, isConnected } = useWebSocket(
-  'ws://localhost:8000/ws/projects/123',
+  'ws://localhost:8001/ws/projects/123',
   {
     reconnect: true,
     heartbeatInterval: 30000,

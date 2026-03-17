@@ -63,9 +63,9 @@ docker-compose exec backend alembic upgrade head
 
 ### 5. 访问应用
 
-- **前端**: http://localhost:3000
-- **后端API**: http://localhost:8000
-- **API文档**: http://localhost:8000/docs
+- **前端**: http://localhost:3001
+- **后端API**: http://localhost:8001
+- **API文档**: http://localhost:8001/docs
 
 ---
 
@@ -73,7 +73,7 @@ docker-compose exec backend alembic upgrade head
 
 ### 第一步：注册账号
 
-1. 访问 http://localhost:3000
+1. 访问 http://localhost:3001
 2. 点击 "Sign Up"
 3. 填写邮箱、用户名、密码
 4. 自动登录并跳转到项目列表
@@ -138,7 +138,7 @@ poetry run alembic upgrade head
 poetry run uvicorn app.main:app --reload
 ```
 
-后端运行在 http://localhost:8000
+后端运行在 http://localhost:8001
 
 ### 前端
 
@@ -155,7 +155,7 @@ cp .env.local.example .env.local
 pnpm dev
 ```
 
-前端运行在 http://localhost:3000
+前端运行在 http://localhost:3001
 
 ---
 
@@ -236,7 +236,7 @@ docker-compose exec backend alembic upgrade head
 **解决**:
 ```bash
 # 检查后端状态
-curl http://localhost:8000/health
+curl http://localhost:8001/health
 
 # 检查前端环境变量
 cat frontend/.env.local
@@ -332,7 +332,7 @@ curl https://api.openai.com/v1/models \
 docker-compose up -d
 
 # 访问
-open http://localhost:3000
+open http://localhost:3001
 ```
 
 **祝你使用愉快！** 🚀

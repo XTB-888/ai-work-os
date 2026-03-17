@@ -272,7 +272,7 @@
 ### 完整用户旅程
 
 ```
-1. 访问系统 (http://localhost:3000)
+1. 访问系统 (http://localhost:3001)
    ↓
 2. 注册/登录
    ↓
@@ -480,7 +480,7 @@ Agent不只是生成文本，还可以：
 
 **GitHub**: https://github.com/XTB-888/ai-work-os  
 **文档**: 项目根目录下的所有.md文件  
-**演示**: 本地部署后访问 http://localhost:3000  
+**演示**: 本地部署后访问 http://localhost:3001  
 
 ---
 

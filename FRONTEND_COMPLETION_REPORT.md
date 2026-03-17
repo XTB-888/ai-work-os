@@ -107,7 +107,7 @@
 
 ### 完整用户旅程
 
-1. **访问首页** → http://localhost:3000
+1. **访问首页** → http://localhost:3001
    - 查看产品介绍
    - 点击"Get Started"
 
@@ -282,9 +282,9 @@ pnpm install
 pnpm dev
 
 # 3. 访问
-# 前端: http://localhost:3000
-# 后端API: http://localhost:8000
-# API文档: http://localhost:8000/docs
+# 前端: http://localhost:3001
+# 后端API: http://localhost:8001
+# API文档: http://localhost:8001/docs
 ```
 
 ### Docker环境
@@ -297,8 +297,8 @@ docker-compose up -d
 docker-compose exec backend alembic upgrade head
 
 # 3. 访问
-# 前端: http://localhost:3000
-# 后端: http://localhost:8000
+# 前端: http://localhost:3001
+# 后端: http://localhost:8001
 ```
 
 ---

@@ -288,9 +288,9 @@ poetry run alembic upgrade head
 ```
 
 **5. 访问应用**
-- 后端API: http://localhost:8000
-- API文档: http://localhost:8000/docs
-- 前端: http://localhost:3000
+- 后端API: http://localhost:8001
+- API文档: http://localhost:8001/docs
+- 前端: http://localhost:3001
 
 ---
 
@@ -298,7 +298,7 @@ poetry run alembic upgrade head
 
 ### 1. 注册用户
 ```bash
-curl -X POST http://localhost:8000/api/v1/auth/register \
+curl -X POST http://localhost:8001/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -309,7 +309,7 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
 
 ### 2. 创建项目
 ```bash
-curl -X POST http://localhost:8000/api/v1/projects \
+curl -X POST http://localhost:8001/api/v1/projects \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
@@ -320,7 +320,7 @@ curl -X POST http://localhost:8000/api/v1/projects \
 
 ### 3. 查看项目状态
 ```bash
-curl http://localhost:8000/api/v1/projects/PROJECT_ID \
+curl http://localhost:8001/api/v1/projects/PROJECT_ID \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 

@@ -74,14 +74,14 @@ cd backend && poetry run alembic upgrade head
 
 **2. 注册用户**
 ```bash
-curl -X POST http://localhost:8000/api/v1/auth/register \
+curl -X POST http://localhost:8001/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"test@ai.com","username":"test","password":"test123"}'
 ```
 
 **3. 创建项目**
 ```bash
-curl -X POST http://localhost:8000/api/v1/projects \
+curl -X POST http://localhost:8001/api/v1/projects \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

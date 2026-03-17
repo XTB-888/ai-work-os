@@ -127,7 +127,7 @@ async def startup_event():
     logger.info(f"   Environment: {settings.ENVIRONMENT}")
     logger.info(f"   Database: {settings.DATABASE_URL.split('@')[1] if '@' in settings.DATABASE_URL else 'configured'}")
     logger.info(f"   Debug mode: {settings.DEBUG}")
-    logger.info(f"   Docs: http://localhost:8000/docs")
+    logger.info(f"   Docs: http://localhost:8001/docs")
 
 @app.on_event("shutdown")
 async def shutdown_event():
