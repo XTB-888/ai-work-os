@@ -40,8 +40,8 @@ docker-compose up -d
 docker-compose exec backend alembic upgrade head
 
 # 5. Access
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:8000/docs
+# Frontend: http://localhost:3001
+# Backend API: http://localhost:8001/docs
 ```
 
 #### 📚 Documentation
@@ -49,6 +49,12 @@ docker-compose exec backend alembic upgrade head
 - [Quick Start Guide](./QUICKSTART.md)
 - [Project Summary](./PROJECT_SUMMARY.md)
 - [System Architecture](./01-系统架构设计.md)
+
+**Note**: To avoid port conflicts, this project uses:
+- Frontend: 3001 (instead of 3000)
+- Backend: 8001 (instead of 8000)
+- PostgreSQL: 5433 (instead of 5432)
+- Redis: 6380 (instead of 6379)
 
 #### 🎯 Features
 
@@ -85,8 +91,8 @@ docker-compose up -d
 docker-compose exec backend alembic upgrade head
 
 # 5. 访问应用
-# 前端: http://localhost:3000
-# 后端API: http://localhost:8000/docs
+# 前端: http://localhost:3001
+# 后端API: http://localhost:8001/docs
 ```
 
 #### 📚 文档
@@ -94,6 +100,12 @@ docker-compose exec backend alembic upgrade head
 - [快速开始指南](./QUICKSTART.md)
 - [项目总结](./PROJECT_SUMMARY.md)
 - [系统架构设计](./01-系统架构设计.md)
+
+**注意**: 为避免端口冲突，本项目使用以下端口：
+- 前端: 3001 (替代 3000)
+- 后端: 8001 (替代 8000)
+- PostgreSQL: 5433 (替代 5432)
+- Redis: 6380 (替代 6379)
 
 #### 🎯 核心特性
 
