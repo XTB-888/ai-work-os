@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:15-alpine
+    image: docker.mirrors.ustc.edu.cn/library/postgres:15-alpine
     container_name: aiworkos-postgres
     environment:
       POSTGRES_DB: ai_work_os
@@ -17,7 +17,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: docker.mirrors.ustc.edu.cn/library/redis:7-alpine
     container_name: aiworkos-redis
     ports:
       - "6380:6379"
@@ -30,9 +30,7 @@ services:
       retries: 5
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: python:3.11-slim
     container_name: aiworkos-backend
     ports:
       - "8001:8000"
@@ -50,12 +48,14 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    working_dir: /app
+    command: >
+      sh -c "pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple &&
+             alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: node:20-alpine
     container_name: aiworkos-frontend
     ports:
       - "3001:3000"
@@ -66,8 +66,11 @@ services:
       - backend
     volumes:
       - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
+    working_dir: /app
+    command: >
+      sh -c "npm install -g pnpm --registry https://registry.npmmirror.com &&
+             pnpm install --registry https://registry.npmmirror.com &&
+             pnpm dev"
 
 volumes:
   postgres_data:

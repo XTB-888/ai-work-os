@@ -1,5 +1,5 @@
 """
-LLM Provider abstraction – supports OpenAI, Anthropic, local models, etc.
+LLM Provider abstraction – supports OpenAI, Alibaba Cloud Bailian (DashScope), and local models.
 """
 from typing import Optional
 from langchain_openai import ChatOpenAI
@@ -15,8 +15,21 @@ def get_llm(
 ) -> BaseChatModel:
     """
     Returns a configured LLM instance.
-    Currently supports OpenAI; can be extended to Anthropic, local models, etc.
+    Supports OpenAI, Alibaba Cloud Bailian (DashScope), and local models.
     """
+    
+    # Check if using Alibaba Cloud Bailian
+    if settings.LLM_PROVIDER == "dashscope":
+        from langchain_community.chat_models import ChatTongyi
+        
+        return ChatTongyi(
+            model=model or settings.DASHSCOPE_MODEL,
+            temperature=temperature if temperature is not None else settings.DASHSCOPE_TEMPERATURE,
+            max_tokens=max_tokens or settings.DASHSCOPE_MAX_TOKENS,
+            dashscope_api_key=settings.DASHSCOPE_API_KEY,
+        )
+    
+    # Default to OpenAI
     return ChatOpenAI(
         model=model or settings.OPENAI_MODEL,
         temperature=temperature if temperature is not None else settings.OPENAI_TEMPERATURE,
